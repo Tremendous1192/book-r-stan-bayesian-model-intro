@@ -1,6 +1,6 @@
 # RとStanではじめる ベイズ統計モデリングによるデータ分析入門
-[RとStanではじめる　ベイズ統計モデリングによるデータ分析入門](https://www.kspub.co.jp/book/detail/5165362.html)のR-StanコードをPythonのNumPyroで書き直す。 \
-ChatGPT5 Thinkingに草案を書かせて修正する方針を取った。
+[RとStanではじめる　ベイズ統計モデリングによるデータ分析入門](https://www.kspub.co.jp/book/detail/5165362.html)のR-StanコードをPythonのNumPyroで書き直す。 
+
 
 # 参考URL
 * [RとStanではじめる ベイズ統計モデリングによるデータ分析入門：サポートページ | Logics of Blue](https://logics-of-blue.com/r-stan-bayesian-model-intro-book-support/)

@@ -7,6 +7,7 @@ NUTS によるMCMCサンプリングを簡易に実行するための関数を�
 
 - try_render_model: 確率モデルのグラフ可視化 (Graphviz / SVG)
 - run_mcmc: NUTS + MCMC を走らせて ArviZ InferenceData を返す
+- compute_posterior_predictive_distribution: MCMC結果から事後予測分布を生成し InferenceData にまとめる
 
 注記
 ----
@@ -98,7 +99,6 @@ def run_mcmc(
     thinning: int = 1,
     seed: int = 42,
     target_accept_prob: float = 0.8,
-    log_likelihood: bool = False,
     **model_args: Any,
 ) -> az.InferenceData:
     """
@@ -121,8 +121,6 @@ def run_mcmc(
         乱数シード (``jax.random.PRNGKey(seed)`` に渡されます)。
     target_accept_prob : float, default 0.8
         NUTS のステップサイズ調整で目標とする受理率。
-    log_likelihood : bool, default False
-        ``az.from_numpyro`` で対数尤度を同梱するかどうか。
     **model_args : Any
         モデルに渡すキーワード引数 (データなど)。
 
@@ -173,7 +171,73 @@ def run_mcmc(
 
     # 乱数キーを初期化して実行
     mcmc.run(jax.random.PRNGKey(seed), **model_args)
+    return mcmc
 
-    # ArviZ の InferenceData に変換
-    idata = az.from_numpyro(mcmc, log_likelihood=log_likelihood)
+
+def compute_posterior_predictive_distribution(
+    model: Callable[..., None],
+    mcmc: numpyro.infer.MCMC,
+    var_name: str = "Y",
+    seed: int = 42,
+    hdi_prob: float = 0.95,
+    log_likelihood: bool = False,
+    **model_args: Any,
+) -> az.InferenceData:
+    """
+    MCMCで得られた事後サンプルから事後予測分布 (posterior predictive) を生成し、
+    ArviZ の ``InferenceData`` にまとめて返す。
+
+    Parameters
+    ----------
+    model : Callable[..., None]
+        予測を行うための NumPyro モデル関数。観測なしでもサンプル可能である必要があります。
+    mcmc : numpyro.infer.MCMC
+        ``run_mcmc`` などで事前に実行しておいた MCMC オブジェクト。
+        ここから事後サンプルを取得して予測に使います。
+    var_name : str, default "Y"
+        予測対象の変数名。モデル内で `numpyro.sample(var_name, ...)` として定義されているものを想定します。
+        ArviZ 側での可視化や抽出時の識別に利用できます。
+    seed : int, default 42
+        事後予測サンプル生成時に使う乱数シード。
+    hdi_prob : float, default 0.95
+        (将来的な利用を想定した) HPD/HDI の信頼水準。ここでは値を保持するだけで、直接の計算には用いていません。
+    log_likelihood : bool, default False
+        ``az.from_numpyro`` に対して対数尤度も合わせて格納するかどうか。
+    **model_args : Any
+        予測時にモデルへ渡す追加の引数 (将来の説明変数や新しいデータなど)。
+
+    Returns
+    -------
+    az.InferenceData
+        元のMCMC結果に、``posterior_predictive`` (および必要に応じて ``log_likelihood``) が追加された ``InferenceData``。
+
+    Notes
+    -----
+    - `numpyro.infer.Predictive` を使って、各事後サンプルから新たに観測を生成します。
+    - 返り値は ArviZ の描画関数 (``az.plot_ppc`` など) でそのまま利用できます。
+
+    Examples
+    --------
+    >>> # mcmc = run_mcmc(model, x=x, y=y) で事後サンプル取得済みとする
+    >>> idata_ppc = compute_posterior_predictive_distribution(
+    ...     model,
+    ...     mcmc,
+    ...     x=x_new,   # 予測したい説明変数
+    ...     log_likelihood=True,
+    ... )
+    >>> az.plot_ppc(idata_ppc)
+    """
+    # 事後サンプルの取得
+    posterior_samples = mcmc.get_samples()
+
+    # 予測分布のインスタンス
+    pred = numpyro.infer.Predictive(model, posterior_samples=posterior_samples)
+    ppc = pred(jax.random.PRNGKey(seed), **model_args)
+
+    # ArviZ InferenceData に変換して返す
+    idata = az.from_numpyro(
+        mcmc,
+        posterior_predictive=ppc,
+        log_likelihood=log_likelihood,
+    )
     return idata
