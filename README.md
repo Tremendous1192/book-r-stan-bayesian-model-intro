@@ -1,5 +1,6 @@
 # RとStanではじめる ベイズ統計モデリングによるデータ分析入門
-[RとStanではじめる　ベイズ統計モデリングによるデータ分析入門](https://www.kspub.co.jp/book/detail/5165362.html)のR-StanコードをPythonのNumPyroで書き直す。 
+[RとStanではじめる　ベイズ統計モデリングによるデータ分析入門](https://www.kspub.co.jp/book/detail/5165362.html)のR-StanコードをPythonのNumPyroで書き直す。 \
+フォルダ名の文字数が長かったので少し短くした。
 
 
 # 参考URL
